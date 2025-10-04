@@ -2,7 +2,7 @@
 
 -- Team configuration using a map structure
 local teams = {
-    team3 = {
+    acc3 = {
         "Alfredabo-Zul'jin",
         "Aboalfred-Zul'jin",
         "Alfredabos-Zul'jin",
@@ -17,7 +17,7 @@ local teams = {
         "Duranin-Zul'jin",
         "Naosis-Zul'jin",
     },
-    team6 = {
+    acc6 = {
         "Nalut-Dragonmaw",
         "Ignath-Zul'jin",
         "Naosus-Zul'jin",
@@ -102,17 +102,17 @@ end
 -- === UI Panel ===
 
 -- Check which teams the current player is in
-local playerInTeam3 = IsPlayerInTeam("team3")
-local playerInTeam6 = IsPlayerInTeam("team6")
+local playerInAcc3 = IsPlayerInTeam("acc3")
+local playerInAcc6 = IsPlayerInTeam("acc6")
 
 -- Calculate frame height based on which buttons will be shown
 local baseHeight = 120  -- Base height for frame with focus buttons
 local buttonHeight = 30 -- Height for each team button
 local frameHeight = baseHeight
-if not playerInTeam3 then
+if not playerInAcc3 then
     frameHeight = frameHeight + buttonHeight
 end
-if not playerInTeam6 then
+if not playerInAcc6 then
     frameHeight = frameHeight + buttonHeight
 end
 
@@ -142,13 +142,13 @@ end
 
 -- Create team buttons conditionally
 local currentY = -30
-if not playerInTeam3 then
-    CreateButton("InviteTeam3Btn", f, "Invite Team 3", 0, currentY, function() InviteTeam(teams.team3) end)
+if not playerInAcc3 then
+    CreateButton("InviteAcc3Btn", f, "Invite Acc 3", 0, currentY, function() InviteTeam(teams.acc3) end)
     currentY = currentY - 30
 end
 
-if not playerInTeam6 then
-    CreateButton("InviteTeam6Btn", f, "Invite Team 6", 0, currentY, function() InviteTeam(teams.team6) end)
+if not playerInAcc6 then
+    CreateButton("InviteAcc6Btn", f, "Invite Acc 6", 0, currentY, function() InviteTeam(teams.acc6) end)
     currentY = currentY - 30
 end
 
@@ -182,8 +182,12 @@ local function CreateFocusButtons()
     -- Add team members (excluding current player)
     for _, member in ipairs(teamMembers) do
         if member.fullName ~= currentPlayer then
+            -- Extract account number from team name (e.g., "acc3" -> "3")
+            local teamName = allTeamMembers[member.fullName]
+            local accountNumber = teamName:match("acc(%d+)") or teamName
+            
             table.insert(allButtons, {
-                text = member.shortName,
+                text = accountNumber,
                 macrotext = "/target " .. member.fullName .. "\n/focus target"
             })
         end
