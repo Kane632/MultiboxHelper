@@ -1,0 +1,7 @@
+## Interface: 110200
+## Title: Multibox Helper
+## Notes: Simple helper for invites, leaving, and focus
+## Author: Kane632
+## Version: 1.0
+
+MultiboxHelper.lua
