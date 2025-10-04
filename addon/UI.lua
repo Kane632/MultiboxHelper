@@ -264,6 +264,14 @@ function UI.ToggleFrame()
     end
 end
 
+-- Refresh UI content without recreating (preserves position)
+function UI.RefreshContent()
+    if UI.frame and UI.frame:IsVisible() then
+        -- Just refresh the focus buttons to reflect any team changes
+        UI.CreateFocusButtons(UI.frame)
+    end
+end
+
 -- Recreate the main frame (used when settings change)
 function UI.RecreateMainFrame()
     local wasVisible = UI.frame and UI.frame:IsVisible()

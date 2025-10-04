@@ -138,10 +138,8 @@ function Options.CreatePanel()
         Options.RestoreDefaults()
     end
     
-    -- Also save when the panel is hidden (in case user closes with X)
-    optionsPanel:SetScript("OnHide", function()
-        Options.SaveSettings()
-    end)
+    -- Note: Removed auto-save on hide to prevent UI position conflicts
+    -- Settings are saved when user clicks OK or when changes are made
     
     -- Register with Interface Options
     if InterfaceOptions_AddCategory then
@@ -513,10 +511,10 @@ function Options.SaveSettings()
         end
     end
     
-    -- Rebuild team lookup and refresh UI
+    -- Rebuild team lookup and refresh UI content without position changes
     addon.Core.BuildTeamLookup()
-    if addon.UI.frame and addon.UI.frame:IsVisible() then
-        addon.UI.RecreateMainFrame()
+    if addon.UI then
+        addon.UI.RefreshContent()
     end
     
     print("|cff00ff00MultiboxHelper:|r Settings saved! (" .. savedTeamCount .. " teams)")

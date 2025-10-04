@@ -66,6 +66,10 @@ local function SlashCommandHandler(msg)
             print("|cffff0000MultiboxHelper:|r Core module not loaded")
         end
         
+    elseif command == "pos" or command == "position" then
+        -- Show current UI position information
+        Commands.ShowPositionInfo()
+        
     elseif command == "help" then
         -- Show help
         Commands.ShowHelp()
@@ -73,6 +77,37 @@ local function SlashCommandHandler(msg)
     else
         print("|cffff0000MultiboxHelper:|r Unknown command. Type '/mbh help' for available commands.")
     end
+end
+
+-- Show current UI position information
+function Commands.ShowPositionInfo()
+    print("|cff00ff00MultiboxHelper Position Info:|r")
+    
+    -- Show saved position from database
+    if MultiboxHelperDB and MultiboxHelperDB.char and MultiboxHelperDB.char.windowPosition then
+        local savedPos = MultiboxHelperDB.char.windowPosition
+        print("  |cff00ff00Saved Position:|r " .. (savedPos.point or "nil") .. " (" .. (savedPos.x or 0) .. ", " .. (savedPos.y or 0) .. ")")
+    else
+        print("  |cffff0000Saved Position:|r not found in database")
+    end
+    
+    -- Show current UI frame position
+    if addon.UI and addon.UI.frame then
+        local frame = addon.UI.frame
+        if frame:IsVisible() then
+            local point, relativeTo, relativePoint, x, y = frame:GetPoint()
+            print("  |cff00ff00Current Position:|r " .. (point or "nil") .. " (" .. (x or 0) .. ", " .. (y or 0) .. ")")
+            print("  |cff00ff00Frame Size:|r " .. frame:GetWidth() .. "x" .. frame:GetHeight())
+            print("  |cff00ff00Frame Visible:|r true")
+        else
+            print("  |cffff0000Current Position:|r UI frame is hidden")
+        end
+    else
+        print("  |cffff0000Current Position:|r UI frame not created")
+    end
+    
+    -- Show screen dimensions for reference
+    print("  |cff00ff00Screen Size:|r " .. GetScreenWidth() .. "x" .. GetScreenHeight())
 end
 
 -- Show debug information
@@ -117,6 +152,7 @@ function Commands.ShowHelp()
     print("  |cffff0000/mbh config|r or |cffff0000/mbh options|r - Open configuration panel")
     print("  |cffff0000/mbh debug|r - Show debug information")
     print("  |cffff0000/mbh refresh|r - Manually refresh options panel")
+    print("  |cffff0000/mbh pos|r - Show current UI position coordinates")
     print("  |cffff0000/mbh resetpos|r - Reset UI position to center")
     print("  |cffff0000/mbh help|r - Show this help message")
 end
