@@ -1,7 +1,12 @@
 ## Interface: 110200
 ## Title: Multibox Helper
-## Notes: Simple helper for invites, leaving, and focus
+## Notes: Advanced multiboxing helper with team management and dynamic UI
 ## Author: Kane632
-## Version: 1.0
+## Version: 2.0
+## SavedVariables: MultiboxHelperDB
 
-MultiboxHelper.lua
+Init.lua
+Core.lua
+UI.lua
+Commands.lua
+Options.lua
