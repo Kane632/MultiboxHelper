@@ -12,6 +12,12 @@ local teamPanels = {}
 local scrollFrame = nil
 local scrollChild = nil
 
+-- Helper functions
+local function trim(s)
+    if not s then return "" end
+    return s:match("^%s*(.-)%s*$")
+end
+
 -- Debug helper functions
 local function IsDebugEnabled()
     return MultiboxHelperDB and MultiboxHelperDB.profile and MultiboxHelperDB.profile.debug and MultiboxHelperDB.profile.debug.enabled
@@ -132,6 +138,11 @@ function Options.CreatePanel()
         Options.RestoreDefaults()
     end
     
+    -- Also save when the panel is hidden (in case user closes with X)
+    optionsPanel:SetScript("OnHide", function()
+        Options.SaveSettings()
+    end)
+    
     -- Register with Interface Options
     if InterfaceOptions_AddCategory then
         InterfaceOptions_AddCategory(optionsPanel)
@@ -158,12 +169,19 @@ function Options.AddNewTeam(teamName, characters)
     
     OptionsDebugPrint("Creating team panel for: " .. teamName)
     
-    -- Create team panel
+    -- Create team panel with dynamic height
     local teamPanel = CreateFrame("Frame", nil, scrollChild)
     local panelWidth = math.max(400, scrollFrame:GetWidth() - 40) -- Ensure minimum width
-    teamPanel:SetSize(panelWidth, 180)
-    local yOffset = -10 - (#teamPanels * 190)
+    
+    -- Calculate Y offset based on actual heights of existing panels
+    local yOffset = -10
+    for _, existingPanel in ipairs(teamPanels) do
+        yOffset = yOffset - (existingPanel:GetHeight() + 10) -- Panel height + spacing
+    end
+    
     teamPanel:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 10, yOffset)
+    teamPanel:SetWidth(panelWidth)
+    teamPanel:SetHeight(180) -- Initial height, will be adjusted after content
     
     OptionsDebugPrint("Team panel created at position: " .. yOffset .. " with width: " .. panelWidth)
     
@@ -221,26 +239,93 @@ function Options.AddNewTeam(teamName, characters)
         self:ClearFocus()
     end)
     
-    -- Characters label
+    -- Characters label with Edit button on the same line
     local charactersLabel = teamPanel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     charactersLabel:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -15)
     charactersLabel:SetText("Characters (one per line, format: Name-Server):")
     
-    -- Characters text area
-    local charactersFrame = CreateFrame("Frame", nil, teamPanel, "InsetFrameTemplate")
-    charactersFrame:SetSize(400, 100)
-    charactersFrame:SetPoint("TOPLEFT", charactersLabel, "BOTTOMLEFT", 0, -5)
+    -- Edit button next to the label
+    local editButton = CreateFrame("Button", nil, teamPanel, "UIPanelButtonTemplate")
+    editButton:SetSize(70, 20)
+    editButton:SetPoint("LEFT", charactersLabel, "RIGHT", 10, 0)
+    editButton:SetText("Edit")
     
-    local charactersEditBox = CreateFrame("EditBox", nil, charactersFrame)
-    charactersEditBox:SetMultiLine(true)
-    charactersEditBox:SetSize(380, 80)
-    charactersEditBox:SetPoint("TOPLEFT", charactersFrame, "TOPLEFT", 10, -10)
-    charactersEditBox:SetFontObject("ChatFontNormal")
-    charactersEditBox:SetText(characters)
-    charactersEditBox:SetAutoFocus(false)
-    charactersEditBox:SetScript("OnEscapePressed", function(self)
-        self:ClearFocus()
+    -- Characters display area - Auto-sizing read-only list
+    local charactersFrame = CreateFrame("Frame", nil, teamPanel, "InsetFrameTemplate")
+    charactersFrame:SetPoint("TOPLEFT", charactersLabel, "BOTTOMLEFT", 0, -5)
+    charactersFrame:SetPoint("TOPRIGHT", teamPanel, "TOPRIGHT", -10, -35) -- Dynamic width
+    
+    -- Create auto-sizing display text
+    local charactersDisplay = charactersFrame:CreateFontString(nil, "ARTWORK", "ChatFontNormal")
+    charactersDisplay:SetPoint("TOPLEFT", charactersFrame, "TOPLEFT", 10, -10)
+    charactersDisplay:SetPoint("TOPRIGHT", charactersFrame, "TOPRIGHT", -10, -10)
+    charactersDisplay:SetJustifyH("LEFT")
+    charactersDisplay:SetJustifyV("TOP")
+    charactersDisplay:SetTextColor(0.9, 0.9, 0.9, 1)
+    
+    -- Function to update the display and auto-resize the frame
+    local function UpdateCharactersDisplay()
+        local currentData = teamPanel.charactersData or characters or ""
+        if currentData and currentData ~= "" then
+            local lines = {}
+            for line in currentData:gmatch("[^\r\n]+") do
+                local trimmedLine = trim(line)
+                if trimmedLine ~= "" then
+                    table.insert(lines, trimmedLine)
+                end
+            end
+            if #lines > 0 then
+                local displayText = table.concat(lines, "\n")
+                charactersDisplay:SetText(displayText)
+                
+                -- Calculate required height based on number of lines
+                local lineHeight = 14 -- Approximate pixels per line
+                local requiredHeight = math.max(30, (#lines * lineHeight) + 20) -- +20 for padding
+                charactersFrame:SetHeight(requiredHeight)
+            else
+                charactersDisplay:SetText("(No characters configured)")
+                charactersFrame:SetHeight(30)
+            end
+        else
+            charactersDisplay:SetText("(No characters configured)")
+            charactersDisplay:SetTextColor(0.6, 0.6, 0.6, 1)
+            charactersFrame:SetHeight(30)
+        end
+        
+        -- Reset text color to normal after setting text
+        charactersDisplay:SetTextColor(0.9, 0.9, 0.9, 1)
+        
+        -- Update team panel height to accommodate the characters frame
+        local totalPanelHeight = 90 + charactersFrame:GetHeight() -- Base height + characters frame height
+        teamPanel:SetHeight(totalPanelHeight)
+        
+        -- Reposition all panels and update scroll frame
+        C_Timer.After(0.01, function()
+            Options.RepositionPanels()
+            Options.UpdateScrollFrameSize()
+        end)
+    end
+    
+    -- Initial display update
+    UpdateCharactersDisplay()
+    
+    -- Set up the edit button click handler (button was created earlier)
+    editButton:SetScript("OnClick", function()
+        local currentData = teamPanel.charactersData or characters or ""
+        Options.OpenCharacterEditor(teamPanel, currentData, UpdateCharactersDisplay)
     end)
+    
+    -- Store the current characters data and update function
+    teamPanel.charactersData = characters
+    teamPanel.UpdateCharactersDisplay = UpdateCharactersDisplay
+    
+    -- Create a hidden EditBox for saving compatibility
+    local charactersEditBox = CreateFrame("EditBox", nil, charactersFrame)
+    charactersEditBox:Hide()
+    charactersEditBox:SetText(characters)
+    charactersEditBox.GetText = function()
+        return teamPanel.charactersData or ""
+    end
     
     -- Delete button (trash icon)
     local deleteButton = CreateFrame("Button", nil, teamPanel, "UIPanelButtonTemplate")
@@ -261,13 +346,15 @@ function Options.AddNewTeam(teamName, characters)
         GameTooltip:Hide()
     end)
     
-    -- Store references
+    -- Store references for saving
     teamPanel.nameEditBox = nameEditBox
     teamPanel.charactersEditBox = charactersEditBox
     teamPanel.deleteButton = deleteButton
     
     table.insert(teamPanels, teamPanel)
     Options.UpdateScrollFrameSize()
+    
+    OptionsDebugPrint("Team panel created and added to teamPanels. Total panels: " .. #teamPanels)
     
     return teamPanel
 end
@@ -294,6 +381,15 @@ function Options.DeleteTeam(teamPanel)
     Options.UpdateScrollFrameSize()
 end
 
+-- Reposition all team panels based on their actual heights
+function Options.RepositionPanels()
+    local yOffset = -10
+    for _, panel in ipairs(teamPanels) do
+        panel:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 10, yOffset)
+        yOffset = yOffset - (panel:GetHeight() + 10) -- Panel height + spacing
+    end
+end
+
 -- Update scroll frame content size
 function Options.UpdateScrollFrameSize()
     if not scrollChild then
@@ -301,7 +397,13 @@ function Options.UpdateScrollFrameSize()
         return
     end
     
-    local height = math.max(100, #teamPanels * 190 + 20)
+    -- Calculate total height based on actual panel heights
+    local totalHeight = 20 -- Base padding
+    for _, panel in ipairs(teamPanels) do
+        totalHeight = totalHeight + panel:GetHeight() + 10 -- Panel height + spacing
+    end
+    
+    local height = math.max(100, totalHeight)
     local width = scrollFrame and scrollFrame:GetWidth() or 400
     
     scrollChild:SetSize(width, height)
@@ -371,28 +473,43 @@ end
 
 -- Save settings from UI to saved variables
 function Options.SaveSettings()
+    DebugPrint("SaveSettings() called")
+    
     if not MultiboxHelperDB.profile then
         MultiboxHelperDB.profile = {}
     end
     
     MultiboxHelperDB.profile.teams = {}
+    local savedTeamCount = 0
     
-    for _, panel in ipairs(teamPanels) do
-        local teamName = panel.nameEditBox:GetText():trim()
-        local charactersText = panel.charactersEditBox:GetText():trim()
-        
-        if teamName ~= "" and charactersText ~= "" then
-            local characters = {}
-            for line in charactersText:gmatch("[^\r\n]+") do
-                local character = line:trim()
-                if character ~= "" then
-                    table.insert(characters, character)
-                end
-            end
+    DebugPrint("Processing " .. #teamPanels .. " team panels for saving")
+    
+    for i, panel in ipairs(teamPanels) do
+        if panel.nameEditBox and panel.charactersData then
+            local teamName = trim(panel.nameEditBox:GetText())
+            local charactersText = trim(panel.charactersData or "")
             
-            if #characters > 0 then
-                MultiboxHelperDB.profile.teams[teamName] = characters
+            DebugPrint("Panel " .. i .. ": Name='" .. (teamName or "nil") .. "', Characters length=" .. (charactersText and #charactersText or 0))
+            
+            if teamName and teamName ~= "" and charactersText and charactersText ~= "" then
+                local characters = {}
+                for line in charactersText:gmatch("[^\r\n]+") do
+                    local character = trim(line)
+                    if character ~= "" then
+                        table.insert(characters, character)
+                    end
+                end
+                
+                if #characters > 0 then
+                    MultiboxHelperDB.profile.teams[teamName] = characters
+                    savedTeamCount = savedTeamCount + 1
+                    DebugPrint("Saved team '" .. teamName .. "' with " .. #characters .. " characters")
+                end
+            else
+                DebugPrint("Skipping panel " .. i .. " - missing name or characters")
             end
+        else
+            DebugPrint("Panel " .. i .. " missing nameEditBox or charactersEditBox references")
         end
     end
     
@@ -402,12 +519,105 @@ function Options.SaveSettings()
         addon.UI.RecreateMainFrame()
     end
     
-    print("|cff00ff00MultiboxHelper:|r Settings saved!")
+    print("|cff00ff00MultiboxHelper:|r Settings saved! (" .. savedTeamCount .. " teams)")
 end
 
 -- Cancel changes (reload from saved data)
 function Options.CancelChanges()
     Options.RefreshTeamPanels()
+end
+
+-- Create popup character editor (similar to TomTom's /ttpaste)
+function Options.OpenCharacterEditor(teamPanel, currentText, updateCallback)
+    -- Create popup frame
+    local popup = CreateFrame("Frame", "MultiboxHelperCharacterEditor", UIParent, "BasicFrameTemplateWithInset")
+    popup:SetSize(500, 600)
+    popup:SetPoint("CENTER")
+    popup:SetFrameStrata("DIALOG")
+    popup:SetMovable(true)
+    popup:EnableMouse(true)
+    popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", popup.StartMoving)
+    popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+    
+    -- Set title using the template's title
+    popup.title = popup:CreateFontString(nil, "OVERLAY")
+    popup.title:SetFontObject("GameFontHighlight")
+    popup.title:SetPoint("CENTER", popup.TitleBg, "CENTER", 0, 0)
+    popup.title:SetText("Edit Team Characters")
+    
+    -- Create the text editor
+    local editFrame = CreateFrame("Frame", nil, popup, "InsetFrameTemplate")
+    editFrame:SetSize(460, 480)
+    editFrame:SetPoint("TOP", popup, "TOP", 0, -40)
+    
+    -- Multi-line EditBox (much larger)
+    local editBox = CreateFrame("EditBox", nil, editFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetSize(440, 460)
+    editBox:SetPoint("TOPLEFT", editFrame, "TOPLEFT", 10, -10)
+    editBox:SetFontObject("ChatFontNormal")
+    editBox:SetText(currentText or "")
+    editBox:SetAutoFocus(true)
+    editBox:SetMaxLetters(0)
+    editBox:SetTextColor(1, 1, 1, 1)
+    editBox:SetJustifyH("LEFT")
+    editBox:SetJustifyV("TOP")
+    
+    -- Instructions
+    local instructions = popup:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    instructions:SetPoint("TOPLEFT", editFrame, "BOTTOMLEFT", 10, -10)
+    instructions:SetText("Enter character names, one per line (format: Name-Server)")
+    instructions:SetTextColor(0.8, 0.8, 0.8, 1)
+    
+    -- Save button
+    local saveButton = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    saveButton:SetSize(100, 25)
+    saveButton:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 20)
+    saveButton:SetText("Save")
+    saveButton:SetScript("OnClick", function()
+        local newText = editBox:GetText()
+        teamPanel.charactersData = newText
+        -- Update the display immediately
+        if updateCallback then
+            updateCallback()
+        end
+        popup:Hide()
+        if IsDebugEnabled() then
+            print("|cff00ff00[MBH Debug]:|r Character editor saved changes")
+        end
+    end)
+    
+    -- Cancel button
+    local cancelButton = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    cancelButton:SetSize(100, 25)
+    cancelButton:SetPoint("RIGHT", saveButton, "LEFT", -10, 0)
+    cancelButton:SetText("Cancel")
+    cancelButton:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+    
+    -- Close button (X) functionality
+    popup.CloseButton:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+    
+    -- Handle escape key
+    editBox:SetScript("OnEscapePressed", function()
+        popup:Hide()
+    end)
+    
+    -- Handle enter key (allow new lines, not close)
+    editBox:SetScript("OnEnterPressed", function(self)
+        local cursorPos = self:GetCursorPosition()
+        local text = self:GetText()
+        local newText = text:sub(1, cursorPos) .. "\n" .. text:sub(cursorPos + 1)
+        self:SetText(newText)
+        self:SetCursorPosition(cursorPos + 1)
+    end)
+    
+    popup:Show()
+    editBox:SetFocus()
 end
 
 -- Restore default settings
@@ -420,9 +630,11 @@ function Options.RestoreDefaults()
     teamPanels = {}
     
     -- Show helpful message
-    local helpText = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    helpText:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 10, -20)
-    helpText:SetText("All teams cleared. Click 'Add New Team' to configure your teams.")
+    if scrollChild then
+        local helpText = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        helpText:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 10, -20)
+        helpText:SetText("All teams cleared. Click 'Add New Team' to configure your teams.")
+    end
     
     Options.UpdateScrollFrameSize()
 end
