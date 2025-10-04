@@ -53,7 +53,7 @@ local function InitializeDB()
     -- Merge defaults for profile settings
     for key, value in pairs(defaults.profile) do
         if MultiboxHelperDB.profile[key] == nil then
-            print("|cff00ff00[MBH Debug]:|r Setting default for profile." .. key)
+            addon.DebugPrint("Setting default for profile." .. key)
             MultiboxHelperDB.profile[key] = value
         end
     end
@@ -64,9 +64,9 @@ local function InitializeDB()
         for teamName, _ in pairs(MultiboxHelperDB.profile.teams) do
             teamCount = teamCount + 1
         end
-        print("|cff00ff00[MBH Debug]:|r After initialization, we have " .. teamCount .. " teams")
+        addon.DebugPrint("After initialization, we have " .. teamCount .. " teams")
     else
-        print("|cffff0000[MBH Debug]:|r After initialization, teams table is still nil")
+        addon.DebugPrint("After initialization, teams table is still nil")
     end
 end
 
@@ -88,15 +88,15 @@ function Core.BuildTeamLookup()
     if MultiboxHelperDB and MultiboxHelperDB.profile and MultiboxHelperDB.profile.teams then
         local memberCount = 0
         for teamName, members in pairs(MultiboxHelperDB.profile.teams) do
-            print("|cff00ff00[MBH Debug]:|r Building lookup for team: " .. teamName .. " with " .. #members .. " members")
+            addon.DebugPrint("Building lookup for team: " .. teamName .. " with " .. #members .. " members")
             for _, member in ipairs(members) do
                 allTeamMembers[member] = teamName
                 memberCount = memberCount + 1
             end
         end
-        print("|cff00ff00[MBH Debug]:|r Built team lookup with " .. memberCount .. " total members")
+        addon.DebugPrint("Built team lookup with " .. memberCount .. " total members")
     else
-        print("|cffff0000[MBH Debug]:|r No teams data available for building lookup")
+        addon.DebugPrint("No teams data available for building lookup")
     end
 end
 

@@ -27,18 +27,6 @@ local function IsOptionsDebugEnabled()
     return MultiboxHelperDB and MultiboxHelperDB.profile and MultiboxHelperDB.profile.debug and MultiboxHelperDB.profile.debug.optionsPanel
 end
 
-local function DebugPrint(...)
-    if IsDebugEnabled() then
-        print("|cff00ff00[MBH Debug]:|r", ...)
-    end
-end
-
-local function OptionsDebugPrint(...)
-    if IsDebugEnabled() then
-        print("|cff88ff88[MBH Options]:|r", ...)
-    end
-end
-
 -- Create the main options panel
 function Options.CreatePanel()
     if optionsPanel then return optionsPanel end
@@ -112,7 +100,7 @@ function Options.CreatePanel()
     scrollFrame:SetScrollChild(scrollChild)
     
     -- Debug: Ensure scroll frame is visible
-    DebugPrint("ScrollFrame created with size: " .. scrollFrame:GetWidth() .. "x" .. scrollFrame:GetHeight())
+    addon.DebugPrint("ScrollFrame created with size: " .. scrollFrame:GetWidth() .. "x" .. scrollFrame:GetHeight())
     
     -- Panel callbacks
     optionsPanel.refresh = function()
@@ -157,7 +145,7 @@ end
 -- Add a new team configuration section
 function Options.AddNewTeam(teamName, characters)
     if not scrollFrame or not scrollChild then
-        OptionsDebugPrint("ScrollFrame or scrollChild is nil, cannot create team panel")
+        addon.OptionsDebugPrint("ScrollFrame or scrollChild is nil, cannot create team panel")
         return
     end
     
@@ -165,7 +153,7 @@ function Options.AddNewTeam(teamName, characters)
     teamName = teamName or ("Team" .. teamCount)
     characters = characters or ""
     
-    OptionsDebugPrint("Creating team panel for: " .. teamName)
+    addon.OptionsDebugPrint("Creating team panel for: " .. teamName)
     
     -- Create team panel with dynamic height
     local teamPanel = CreateFrame("Frame", nil, scrollChild)
@@ -181,7 +169,7 @@ function Options.AddNewTeam(teamName, characters)
     teamPanel:SetWidth(panelWidth)
     teamPanel:SetHeight(180) -- Initial height, will be adjusted after content
     
-    OptionsDebugPrint("Team panel created at position: " .. yOffset .. " with width: " .. panelWidth)
+    addon.OptionsDebugPrint("Team panel created at position: " .. yOffset .. " with width: " .. panelWidth)
     
     -- Background - conditional based on debug settings
     if IsOptionsDebugEnabled() then
@@ -233,8 +221,40 @@ function Options.AddNewTeam(teamName, characters)
     nameEditBox:SetPoint("LEFT", nameLabel, "RIGHT", 10, 0)
     nameEditBox:SetText(teamName)
     nameEditBox:SetAutoFocus(false)
+    
+    -- Function to save changes and update UI
+    local function SaveTeamNameChange()
+        -- Save settings immediately
+        Options.SaveSettings()
+        -- Update main UI to reflect team name changes
+        if addon.UI then
+            addon.UI.RefreshContent()
+        end
+        if IsDebugEnabled() then
+            addon.DebugPrint("Team name changed, settings saved and UI updated")
+        end
+    end
+    
     nameEditBox:SetScript("OnEnterPressed", function(self)
         self:ClearFocus()
+        SaveTeamNameChange()
+    end)
+    
+    nameEditBox:SetScript("OnEditFocusLost", function(self)
+        SaveTeamNameChange()
+    end)
+    
+    nameEditBox:SetScript("OnTextChanged", function(self, userInput)
+        -- Only save if the change was made by the user (not programmatically)
+        if userInput then
+            -- Use a timer to debounce rapid changes while typing
+            if nameEditBox.saveTimer then
+                nameEditBox.saveTimer:Cancel()
+            end
+            nameEditBox.saveTimer = C_Timer.NewTimer(2.0, function()
+                SaveTeamNameChange()
+            end)
+        end
     end)
     
     -- Characters label with Edit button on the same line
@@ -352,7 +372,7 @@ function Options.AddNewTeam(teamName, characters)
     table.insert(teamPanels, teamPanel)
     Options.UpdateScrollFrameSize()
     
-    OptionsDebugPrint("Team panel created and added to teamPanels. Total panels: " .. #teamPanels)
+    addon.OptionsDebugPrint("Team panel created and added to teamPanels. Total panels: " .. #teamPanels)
     
     return teamPanel
 end
@@ -391,7 +411,7 @@ end
 -- Update scroll frame content size
 function Options.UpdateScrollFrameSize()
     if not scrollChild then
-        OptionsDebugPrint("scrollChild is nil in UpdateScrollFrameSize")
+        addon.OptionsDebugPrint("scrollChild is nil in UpdateScrollFrameSize")
         return
     end
     
@@ -406,7 +426,7 @@ function Options.UpdateScrollFrameSize()
     
     scrollChild:SetSize(width, height)
     
-    OptionsDebugPrint("Updated scroll child size to: " .. width .. "x" .. height .. " for " .. #teamPanels .. " panels")
+    addon.OptionsDebugPrint("Updated scroll child size to: " .. width .. "x" .. height .. " for " .. #teamPanels .. " panels")
 end
 
 -- Refresh checkbox states from saved data
@@ -435,17 +455,17 @@ function Options.RefreshTeamPanels()
     
     -- Debug: Check if data exists (only if debug enabled)
     if not MultiboxHelperDB then
-        DebugPrint("MultiboxHelperDB is nil")
+        addon.DebugPrint("MultiboxHelperDB is nil")
         return
     end
     
     if not MultiboxHelperDB.profile then
-        DebugPrint("MultiboxHelperDB.profile is nil")
+        addon.DebugPrint("MultiboxHelperDB.profile is nil")
         return
     end
     
     if not MultiboxHelperDB.profile.teams then
-        DebugPrint("MultiboxHelperDB.profile.teams is nil")
+        addon.DebugPrint("MultiboxHelperDB.profile.teams is nil")
         return
     end
     
@@ -457,7 +477,7 @@ function Options.RefreshTeamPanels()
         Options.AddNewTeam(teamName, characterString)
     end
     
-    OptionsDebugPrint("Loaded " .. teamCount .. " teams, created " .. #teamPanels .. " panels")
+    addon.OptionsDebugPrint("Loaded " .. teamCount .. " teams, created " .. #teamPanels .. " panels")
     
     -- If no teams exist, show a helpful message
     if #teamPanels == 0 then
@@ -471,7 +491,7 @@ end
 
 -- Save settings from UI to saved variables
 function Options.SaveSettings()
-    DebugPrint("SaveSettings() called")
+    addon.DebugPrint("SaveSettings() called")
     
     if not MultiboxHelperDB.profile then
         MultiboxHelperDB.profile = {}
@@ -480,14 +500,14 @@ function Options.SaveSettings()
     MultiboxHelperDB.profile.teams = {}
     local savedTeamCount = 0
     
-    DebugPrint("Processing " .. #teamPanels .. " team panels for saving")
+    addon.DebugPrint("Processing " .. #teamPanels .. " team panels for saving")
     
     for i, panel in ipairs(teamPanels) do
         if panel.nameEditBox and panel.charactersData then
             local teamName = trim(panel.nameEditBox:GetText())
             local charactersText = trim(panel.charactersData or "")
             
-            DebugPrint("Panel " .. i .. ": Name='" .. (teamName or "nil") .. "', Characters length=" .. (charactersText and #charactersText or 0))
+            addon.DebugPrint("Panel " .. i .. ": Name='" .. (teamName or "nil") .. "', Characters length=" .. (charactersText and #charactersText or 0))
             
             if teamName and teamName ~= "" and charactersText and charactersText ~= "" then
                 local characters = {}
@@ -501,13 +521,13 @@ function Options.SaveSettings()
                 if #characters > 0 then
                     MultiboxHelperDB.profile.teams[teamName] = characters
                     savedTeamCount = savedTeamCount + 1
-                    DebugPrint("Saved team '" .. teamName .. "' with " .. #characters .. " characters")
+                    addon.DebugPrint("Saved team '" .. teamName .. "' with " .. #characters .. " characters")
                 end
             else
-                DebugPrint("Skipping panel " .. i .. " - missing name or characters")
+                addon.DebugPrint("Skipping panel " .. i .. " - missing name or characters")
             end
         else
-            DebugPrint("Panel " .. i .. " missing nameEditBox or charactersEditBox references")
+            addon.DebugPrint("Panel " .. i .. " missing nameEditBox or charactersEditBox references")
         end
     end
     
@@ -639,15 +659,15 @@ end
 
 -- Initialize options panel
 function Options.Initialize()
-    DebugPrint("Options.Initialize() called")
+    addon.DebugPrint("Options.Initialize() called")
     Options.CreatePanel()
     
     -- Initial refresh to load saved data
     if MultiboxHelperDB and MultiboxHelperDB.profile and MultiboxHelperDB.profile.teams then
-        DebugPrint("Performing initial refresh with saved data")
+        addon.DebugPrint("Performing initial refresh with saved data")
         Options.RefreshTeamPanels()
     else
-        DebugPrint("No saved data found during initialization")
+        addon.DebugPrint("No saved data found during initialization")
     end
 end
 
@@ -656,7 +676,7 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:SetScript("OnEvent", function(self, event, loadedAddon)
     if event == "ADDON_LOADED" and loadedAddon == addonName then
-        DebugPrint("ADDON_LOADED event for " .. loadedAddon)
+        addon.DebugPrint("ADDON_LOADED event for " .. loadedAddon)
         -- Delay initialization slightly to ensure saved variables are fully loaded
         C_Timer.After(0.1, function()
             Options.Initialize()
