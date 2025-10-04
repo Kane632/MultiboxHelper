@@ -53,6 +53,19 @@ local function SlashCommandHandler(msg)
             print("|cffff0000MultiboxHelper:|r Options module not loaded")
         end
         
+    elseif command == "resetpos" or command == "resetposition" then
+        -- Reset UI position to center
+        if addon.Core then
+            addon.Core.SaveWindowPosition("CENTER", 0, 0)
+            if addon.UI.frame then
+                addon.UI.frame:ClearAllPoints()
+                addon.UI.frame:SetPoint("CENTER", 0, 0)
+            end
+            print("|cff00ff00MultiboxHelper:|r UI position reset to center")
+        else
+            print("|cffff0000MultiboxHelper:|r Core module not loaded")
+        end
+        
     elseif command == "help" then
         -- Show help
         Commands.ShowHelp()
@@ -104,6 +117,7 @@ function Commands.ShowHelp()
     print("  |cffff0000/mbh config|r or |cffff0000/mbh options|r - Open configuration panel")
     print("  |cffff0000/mbh debug|r - Show debug information")
     print("  |cffff0000/mbh refresh|r - Manually refresh options panel")
+    print("  |cffff0000/mbh resetpos|r - Reset UI position to center")
     print("  |cffff0000/mbh help|r - Show this help message")
 end
 
