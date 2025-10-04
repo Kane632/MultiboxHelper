@@ -50,9 +50,23 @@ function UI.CreateMainFrame()
     local f = CreateFrame("Frame", "MultiboxHelperFrame", UIParent, "BasicFrameTemplateWithInset")
     f:SetSize(180, frameHeight)
     
-    -- Restore saved position or use default
+    -- Restore saved position or use default with validation
     local pos = addon.Core.GetWindowPosition()
-    f:SetPoint(pos.point, pos.x, pos.y)
+    if pos and pos.point and pos.x and pos.y then
+        -- Validate position is on screen
+        local screenWidth = GetScreenWidth()
+        local screenHeight = GetScreenHeight()
+        local frameWidth, frameHeight = f:GetSize()
+        
+        -- Clamp position to keep frame on screen
+        local clampedX = math.max(-frameWidth/2, math.min(screenWidth - frameWidth/2, pos.x))
+        local clampedY = math.max(-frameHeight/2, math.min(screenHeight - frameHeight/2, pos.y))
+        
+        f:SetPoint(pos.point, clampedX, clampedY)
+    else
+        -- Default center position
+        f:SetPoint("CENTER", 0, 0)
+    end
     
     f.title = f:CreateFontString(nil, "OVERLAY")
     f.title:SetFontObject("GameFontHighlight")
