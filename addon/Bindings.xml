@@ -1,0 +1,22 @@
+<Bindings>
+    <Binding name="MULTIBOXHELPER_LEAVEPARTY" category="BINDING_HEADER_MULTIBOXHELPER">
+        <!-- print("|cff00ff00[MBH Keybind]:|r Leave Party keybind triggered!");
+        if MultiboxHelper then
+            print("|cff00ff00[MBH Keybind]:|r MultiboxHelper global found");
+            if MultiboxHelper.Core then
+                print("|cff00ff00[MBH Keybind]:|r MultiboxHelper.Core found");
+                if MultiboxHelper.Core.LeaveParty then
+                    print("|cff00ff00[MBH Keybind]:|r LeaveParty function found, calling...");
+                    MultiboxHelper.Core.LeaveParty();
+                else
+                    print("|cffff0000[MBH Keybind]:|r LeaveParty function not found in MultiboxHelper");
+                end
+            else
+                print("|cffff0000[MBH Keybind]:|r MultiboxHelper.Core global not found!");
+            end
+        else
+            print("|cffff0000[MBH Keybind]:|r MultiboxHelper global not found!");
+        end -->
+        MultiboxHelper.Core.LeaveParty();
+    </Binding>
+</Bindings>

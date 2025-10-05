@@ -1,5 +1,6 @@
 ## Interface: 110200
-## Title: Multibox Helper
+## Title: MultiboxHelper
+## Name: MultiboxHelper
 ## Notes: Advanced multiboxing helper with team management and dynamic UI
 ## Author: Kane632
 ## Version: 2.0

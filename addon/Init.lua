@@ -20,10 +20,9 @@ function addon.OptionsDebugPrint(...)
     end
 end
 
--- Legacy debug function for backward compatibility
-function addon.Debug(...)
-    addon.DebugPrint(...)
-end
+-- Register keybind commands and headers
+BINDING_HEADER_MULTIBOXHELPER = "MultiboxHelper"
+BINDING_NAME_MULTIBOXHELPER_LEAVEPARTY = "Leave Party"
 
 -- Global addon reference (optional, for other addons to interact)
 _G[addonName] = addon

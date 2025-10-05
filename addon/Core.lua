@@ -71,8 +71,11 @@ local function InitializeDB()
 end
 
 -- Core Functions
-local Core = {}
-addon.Core = Core
+addon.Core = {}
+local Core = addon.Core
+
+-- Expose Core to global context
+_G.MultiboxHelper.Core = Core
 
 -- Get current player's full name (name-server)
 function Core.GetCurrentPlayerName()
