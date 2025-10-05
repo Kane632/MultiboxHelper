@@ -157,6 +157,67 @@ function Core.InviteTeam(team)
     end
 end
 
+function Core.InviteOtherTeams()
+    addon.DebugPrint("InviteOtherTeams() called")
+    
+    -- Get current player's full name
+    local currentPlayer = Core.GetCurrentPlayerName()
+    addon.DebugPrint("Current player: " .. currentPlayer)
+    
+    -- Find which team the current player is in
+    local currentTeam = allTeamMembers[currentPlayer]
+    if not currentTeam then
+        print("|cffff8800MultiboxHelper:|r You are not in any configured team")
+        return
+    end
+    
+    addon.DebugPrint("Current player is in team: " .. currentTeam)
+    
+    -- Get all teams from the database
+    if not MultiboxHelperDB or not MultiboxHelperDB.profile or not MultiboxHelperDB.profile.teams then
+        print("|cffff0000MultiboxHelper:|r No team data available")
+        return
+    end
+    
+    -- Count invites sent and track which teams we invite from
+    local invitesSent = 0
+    local currentPlayerShort = UnitName("player")
+    local teamsInvited = {}
+    
+    print("|cff00ff00MultiboxHelper:|r Inviting members from OTHER teams (excluding '" .. currentTeam .. "')...")
+    
+    -- Loop through all teams and invite members from teams that are NOT the current team
+    for teamName, teamMembers in pairs(MultiboxHelperDB.profile.teams) do
+        if teamName ~= currentTeam then -- Skip current player's team
+            addon.DebugPrint("Processing team: " .. teamName .. " with " .. #teamMembers .. " members")
+            
+            for _, member in ipairs(teamMembers) do
+                addon.DebugPrint("Inviting: " .. member .. " (from team '" .. teamName .. "')")
+                C_PartyInfo.InviteUnit(member)
+                invitesSent = invitesSent + 1
+                
+                -- Track which team this invite came from
+                if not teamsInvited[teamName] then
+                    teamsInvited[teamName] = 0
+                end
+                teamsInvited[teamName] = teamsInvited[teamName] + 1
+            end
+        else
+            addon.DebugPrint("Skipping current team: " .. teamName)
+        end
+    end
+    
+    -- Report results
+    if invitesSent > 0 then
+        print("|cff00ff00MultiboxHelper:|r Sent " .. invitesSent .. " invites from other teams:")
+        for teamName, count in pairs(teamsInvited) do
+            print("  |cff88ff88" .. teamName .. ":|r " .. count .. " invites")
+        end
+    else
+        print("|cffff8800MultiboxHelper:|r No invites sent (no other teams configured or all members already in group)")
+    end
+end
+
 function Core.LeaveParty()
     C_PartyInfo.LeaveParty()
 end

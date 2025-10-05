@@ -19,4 +19,7 @@
         end -->
         MultiboxHelper.Core.LeaveParty();
     </Binding>
+    <Binding name="MULTIBOXHELPER_INVITEOTHERTEAMS" category="BINDING_HEADER_MULTIBOXHELPER">
+        MultiboxHelper.Core.InviteOtherTeams();
+    </Binding>
 </Bindings>

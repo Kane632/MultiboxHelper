@@ -23,6 +23,7 @@ end
 -- Register keybind commands and headers
 BINDING_HEADER_MULTIBOXHELPER = "MultiboxHelper"
 BINDING_NAME_MULTIBOXHELPER_LEAVEPARTY = "Leave Party"
+BINDING_NAME_MULTIBOXHELPER_INVITEOTHERTEAMS = "Invite Other Teams"
 
 -- Global addon reference (optional, for other addons to interact)
 _G[addonName] = addon

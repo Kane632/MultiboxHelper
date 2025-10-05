@@ -74,6 +74,10 @@ local function SlashCommandHandler(msg)
         -- Debug global variables and Core exposure
         Commands.DebugGlobals()
         
+    elseif command == "testinvite" then
+        -- Test the invite other teams function directly
+        Commands.TestInviteOtherTeams()
+        
     elseif command == "help" then
         -- Show help
         Commands.ShowHelp()
@@ -158,6 +162,7 @@ function Commands.ShowHelp()
     print("  |cffff0000/mbh refresh|r - Manually refresh options panel")
     print("  |cffff0000/mbh pos|r - Show current UI position coordinates")
     print("  |cffff0000/mbh resetpos|r - Reset UI position to center")
+    print("  |cffff0000/mbh testinvite|r - Test the invite other teams function")
     print("  |cffff0000/mbh debugglobals|r - Debug global variable setup")
     print("  |cffff0000/mbh help|r - Show this help message")
 end
@@ -241,6 +246,18 @@ function Commands.DebugGlobals()
         print("  |cff00ff00addon.Core:|r exists")
     else
         print("  |cffff0000addon.Core:|r not found")
+    end
+end
+
+-- Test invite other teams function directly
+function Commands.TestInviteOtherTeams()
+    print("|cff00ff00MultiboxHelper:|r Testing invite other teams function directly...")
+    if _G.MultiboxHelper and _G.MultiboxHelper.Core and _G.MultiboxHelper.Core.InviteOtherTeams then
+        _G.MultiboxHelper.Core.InviteOtherTeams()
+    elseif addon and addon.Core and addon.Core.InviteOtherTeams then
+        addon.Core.InviteOtherTeams()
+    else
+        print("|cffff0000MultiboxHelper:|r InviteOtherTeams function not found!")
     end
 end
 
