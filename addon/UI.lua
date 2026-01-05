@@ -9,10 +9,39 @@ addon.UI = UI
 -- UI Variables
 UI.frame = nil
 local focusButtons = {}
+local focusButtonPool = {} -- Pool for recycling buttons
+UI.isUpdatePending = false -- Track if an update is deferred due to combat
 
 -- Button configuration
 local buttonSize = 40
 local buttonSpacing = 5
+
+-- Helper to get a button from the pool or create a new one
+local function AcquireFocusButton(parent)
+    local button = table.remove(focusButtonPool)
+    if not button then
+        -- Create new button if pool is empty
+        local index = #focusButtons + #focusButtonPool + 1 -- Unique suffix for name
+        button = CreateFrame("Button", "DynamicFocusBtn" .. index, parent, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+        button:SetSize(buttonSize, 20)
+        button:RegisterForClicks("AnyUp", "AnyDown")
+    else
+        button:SetParent(parent)
+        button:Show()
+    end
+    return button
+end
+
+-- Helper to release a button back to the pool
+local function ReleaseFocusButton(button)
+    button:Hide()
+    button:SetParent(nil)
+    button:SetAttribute("type", nil)
+    button:SetAttribute("macrotext", nil)
+    button:SetText("")
+    button:ClearAllPoints()
+    table.insert(focusButtonPool, button)
+end
 
 -- Create the main addon frame
 function UI.CreateMainFrame()
@@ -141,14 +170,19 @@ end
 -- Function to clear all focus buttons
 function UI.ClearFocusButtons()
     for _, button in pairs(focusButtons) do
-        button:Hide()
-        button:SetParent(nil)
+        ReleaseFocusButton(button)
     end
     focusButtons = {}
 end
 
 -- Function to create focus buttons for team members in group
 function UI.CreateFocusButtons(parent)
+    if InCombatLockdown() then
+        -- Cannot modify secure frames in combat
+        UI.isUpdatePending = true
+        return 
+    end
+
     if not parent then parent = UI.frame end
     if not parent then return end
     
@@ -198,8 +232,8 @@ function UI.CreateFocusButtons(parent)
     local currentCol = 0
     
     for i, buttonData in ipairs(allButtons) do
-        local button = CreateFrame("Button", "DynamicFocusBtn" .. i, parent, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-        button:SetSize(buttonSize, 20)
+        -- Acquire button from pool
+        local button = AcquireFocusButton(parent)
         
         -- Calculate position
         local x = (currentCol - 1) * (buttonSize + buttonSpacing)  -- -1, 0, 1 for columns
@@ -209,7 +243,6 @@ function UI.CreateFocusButtons(parent)
         button:SetText(buttonData.text)
         button:SetAttribute("type", "macro")
         button:SetAttribute("macrotext", buttonData.macrotext)
-        button:RegisterForClicks("AnyUp", "AnyDown")
         
         table.insert(focusButtons, button)
         
@@ -228,10 +261,20 @@ function UI.RegisterEvents(frame)
     
     UI.eventFrame = CreateFrame("Frame")
     UI.eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    UI.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     
     UI.eventFrame:SetScript("OnEvent", function(self, event)
-        if event == "GROUP_ROSTER_UPDATE" and UI.frame and UI.frame:IsVisible() then
-            UI.CreateFocusButtons()
+        if event == "GROUP_ROSTER_UPDATE" then
+            if InCombatLockdown() then
+                UI.isUpdatePending = true
+            elseif UI.frame and UI.frame:IsVisible() then
+                UI.CreateFocusButtons()
+            end
+        elseif event == "PLAYER_REGEN_ENABLED" then
+            if UI.isUpdatePending and UI.frame and UI.frame:IsVisible() then
+                UI.CreateFocusButtons()
+                UI.isUpdatePending = false
+            end
         end
     end)
 end

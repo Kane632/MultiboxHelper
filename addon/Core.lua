@@ -46,7 +46,12 @@ local function InitializeDB()
     -- Merge defaults for char settings
     for key, value in pairs(defaults.char) do
         if MultiboxHelperDB.char[key] == nil then
-            MultiboxHelperDB.char[key] = value
+            if type(value) == "table" then
+                -- Shallow copy for tables (like windowPosition)
+                MultiboxHelperDB.char[key] = CopyTable(value)
+            else
+                MultiboxHelperDB.char[key] = value
+            end
         end
     end
     
@@ -54,7 +59,13 @@ local function InitializeDB()
     for key, value in pairs(defaults.profile) do
         if MultiboxHelperDB.profile[key] == nil then
             addon.DebugPrint("Setting default for profile." .. key)
-            MultiboxHelperDB.profile[key] = value
+            if type(value) == "table" then
+                -- Shallow copy for tables (like teams, debug)
+                -- Note: CopyTable is a WoW API function that performs a recursive copy
+                MultiboxHelperDB.profile[key] = CopyTable(value)
+            else
+                MultiboxHelperDB.profile[key] = value
+            end
         end
     end
     
