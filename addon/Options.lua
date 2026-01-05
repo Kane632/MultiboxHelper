@@ -170,6 +170,9 @@ function Options.OpenImportExportWindow(isExport)
                 print("|cff00ff00MultiboxHelper:|r " .. msg)
                 Options.RefreshTeamPanels() -- Refresh UI
                 if addon.Core then addon.Core.BuildTeamLookup() end -- Rebuild lookup
+                if addon.UI and addon.UI.RecreateMainFrame then
+                    addon.UI.RecreateMainFrame()
+                end
                 popup:Hide()
             else
                 print("|cffff0000MultiboxHelper Error:|r " .. msg)
@@ -711,7 +714,9 @@ function Options.SaveSettings()
     
     -- Rebuild team lookup and refresh UI content without position changes
     addon.Core.BuildTeamLookup()
-    if addon.UI then
+    if addon.UI and addon.UI.RecreateMainFrame then
+        addon.UI.RecreateMainFrame()
+    elseif addon.UI and addon.UI.RefreshContent then
         addon.UI.RefreshContent()
     end
     
@@ -782,6 +787,8 @@ function Options.OpenCharacterEditor(teamPanel, currentText, updateCallback)
         if IsDebugEnabled() then
             print("|cff00ff00[MBH Debug]:|r Character editor saved changes")
         end
+        -- Force save settings to ensure DB is updated
+        Options.SaveSettings()
     end)
     
     -- Cancel button
