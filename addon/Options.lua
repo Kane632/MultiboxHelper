@@ -27,6 +27,166 @@ local function IsOptionsDebugEnabled()
     return MultiboxHelperDB and MultiboxHelperDB.profile and MultiboxHelperDB.profile.debug and MultiboxHelperDB.profile.debug.optionsPanel
 end
 
+-- --- Import/Export Logic ---
+
+-- Simple Base64 implementation
+local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+local function base64_encode(data)
+    return ((data:gsub('.', function(x) 
+        local r,b='',x:byte()
+        for i=8,1,-1 do r=r..(b%2^i-b%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
+        if (#x < 6) then return '' end
+        local c=0
+        for i=1,6 do c=c+(x:sub(i,i)=='1' and 2^(6-i) or 0) end
+        return b64chars:sub(c+1,c+1)
+    end)..({ '', '==', '=' })[#data%3+1])
+end
+
+local function base64_decode(data)
+    data = string.gsub(data, '[^'..b64chars..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r,f='',b64chars:find(x)-1
+        for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if (#x ~= 8) then return '' end
+        local c=0
+        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+
+function Options.SerializeTeams()
+    local data = {}
+    if MultiboxHelperDB and MultiboxHelperDB.profile and MultiboxHelperDB.profile.teams then
+        for teamName, members in pairs(MultiboxHelperDB.profile.teams) do
+            -- Format: TeamName=Member1,Member2,Member3
+            table.insert(data, teamName .. "=" .. table.concat(members, ","))
+        end
+    end
+    -- Sort for consistency
+    table.sort(data)
+    local rawString = table.concat(data, "|")
+    return "MBH1:" .. base64_encode(rawString)
+end
+
+function Options.DeserializeTeams(importString)
+    if not importString or importString == "" then return false, "Empty string" end
+    
+    local version, payload = importString:match("^(MBH%d+):(.+)$")
+    if not version then return false, "Invalid format (missing version prefix)" end
+    
+    local rawString = base64_decode(payload)
+    if not rawString then return false, "Decoding failed" end
+    
+    local newTeams = {}
+    local count = 0
+    for teamData in rawString:gmatch("[^|]+") do
+        local teamName, membersStr = teamData:match("^(.-)=(.+)$")
+        if teamName and membersStr then
+            local members = {}
+            for member in membersStr:gmatch("[^,]+") do
+                table.insert(members, member)
+            end
+            newTeams[teamName] = members
+            count = count + 1
+        end
+    end
+    
+    if count == 0 then return false, "No valid teams found in string" end
+
+    -- Update DB
+    if not MultiboxHelperDB.profile then MultiboxHelperDB.profile = {} end
+    MultiboxHelperDB.profile.teams = newTeams
+    return true, "Imported " .. count .. " teams successfully"
+end
+
+function Options.OpenImportExportWindow(isExport)
+    -- Create popup frame (reusing similar style to CharacterEditor)
+    local popup = CreateFrame("Frame", "MultiboxHelperImportExport", UIParent, "BasicFrameTemplateWithInset")
+    popup:SetSize(500, 400)
+    popup:SetPoint("CENTER")
+    popup:SetFrameStrata("DIALOG")
+    popup:SetMovable(true)
+    popup:EnableMouse(true)
+    popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", popup.StartMoving)
+    popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+    
+    -- Title
+    popup.title = popup:CreateFontString(nil, "OVERLAY")
+    popup.title:SetFontObject("GameFontHighlight")
+    popup.title:SetPoint("CENTER", popup.TitleBg, "CENTER", 0, 0)
+    popup.title:SetText(isExport and "Export Profile" or "Import Profile")
+    
+    -- Text area
+    local editFrame = CreateFrame("Frame", nil, popup, "InsetFrameTemplate")
+    editFrame:SetSize(460, 280)
+    editFrame:SetPoint("TOP", popup, "TOP", 0, -40)
+    
+    local editBox = CreateFrame("EditBox", nil, editFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetSize(440, 260)
+    editBox:SetPoint("TOPLEFT", editFrame, "TOPLEFT", 10, -10)
+    editBox:SetFontObject("ChatFontNormal")
+    editBox:SetAutoFocus(true)
+    editBox:SetMaxLetters(0)
+    editBox:SetTextColor(1, 1, 1, 1)
+    
+    -- Instructions
+    local instructions = popup:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    instructions:SetPoint("TOPLEFT", editFrame, "BOTTOMLEFT", 10, -10)
+    instructions:SetWidth(460)
+    instructions:SetJustifyH("LEFT")
+    
+    if isExport then
+        local exportString = Options.SerializeTeams()
+        editBox:SetText(exportString)
+        editBox:HighlightText()
+        editBox:SetScript("OnChar", function(self) self:SetText(exportString); self:HighlightText(); end) -- Read-only-ish
+        instructions:SetText("Press Ctrl+C to copy this string. You can paste it into the Import window on another account.")
+    else
+        editBox:SetText("")
+        instructions:SetText("Paste (Ctrl+V) the export string here and click Import. WARNING: This will overwrite your current teams!")
+    end
+
+    -- Close/Import Button
+    local actionButton = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    actionButton:SetSize(100, 25)
+    actionButton:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 20)
+    
+    if isExport then
+        actionButton:SetText("Close")
+        actionButton:SetScript("OnClick", function() popup:Hide() end)
+    else
+        actionButton:SetText("Import")
+        actionButton:SetScript("OnClick", function()
+            local text = editBox:GetText()
+            local success, msg = Options.DeserializeTeams(trim(text))
+            if success then
+                print("|cff00ff00MultiboxHelper:|r " .. msg)
+                Options.RefreshTeamPanels() -- Refresh UI
+                if addon.Core then addon.Core.BuildTeamLookup() end -- Rebuild lookup
+                popup:Hide()
+            else
+                print("|cffff0000MultiboxHelper Error:|r " .. msg)
+            end
+        end)
+    end
+    
+    -- Close X button
+    popup.CloseButton:SetScript("OnClick", function() popup:Hide() end)
+    
+    -- Escape closes
+    editBox:SetScript("OnEscapePressed", function() popup:Hide() end)
+
+    popup:Show()
+    if isExport then editBox:SetFocus() end
+end
+
 -- Create the main options panel
 function Options.CreatePanel()
     if optionsPanel then return optionsPanel end
@@ -82,11 +242,29 @@ function Options.CreatePanel()
     
     -- Add New Team Button
     local addButton = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
-    addButton:SetSize(150, 25)
+    addButton:SetSize(120, 25)
     addButton:SetPoint("TOPLEFT", optionsDebugCheckbox, "BOTTOMLEFT", 0, -15)
     addButton:SetText("Add New Team")
     addButton:SetScript("OnClick", function()
         Options.AddNewTeam()
+    end)
+    
+    -- Export Button
+    local exportButton = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
+    exportButton:SetSize(100, 25)
+    exportButton:SetPoint("LEFT", addButton, "RIGHT", 10, 0)
+    exportButton:SetText("Export")
+    exportButton:SetScript("OnClick", function()
+        Options.OpenImportExportWindow(true)
+    end)
+
+    -- Import Button
+    local importButton = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
+    importButton:SetSize(100, 25)
+    importButton:SetPoint("LEFT", exportButton, "RIGHT", 10, 0)
+    importButton:SetText("Import")
+    importButton:SetScript("OnClick", function()
+        Options.OpenImportExportWindow(false)
     end)
     
     -- Create scroll frame for teams
