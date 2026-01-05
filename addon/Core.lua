@@ -181,10 +181,9 @@ function Core.InviteOtherTeams()
     
     -- Count invites sent and track which teams we invite from
     local invitesSent = 0
-    local currentPlayerShort = UnitName("player")
     local teamsInvited = {}
     
-    print("|cff00ff00MultiboxHelper:|r Inviting members from OTHER teams (excluding '" .. currentTeam .. "')...")
+    addon.DebugPrint("|cff00ff00MultiboxHelper:|r Inviting members from OTHER teams (excluding '" .. currentTeam .. "')...")
     
     -- Loop through all teams and invite members from teams that are NOT the current team
     for teamName, teamMembers in pairs(MultiboxHelperDB.profile.teams) do
@@ -209,12 +208,12 @@ function Core.InviteOtherTeams()
     
     -- Report results
     if invitesSent > 0 then
-        print("|cff00ff00MultiboxHelper:|r Sent " .. invitesSent .. " invites from other teams:")
+        addon.DebugPrint("|cff00ff00MultiboxHelper:|r Sent " .. invitesSent .. " invites to other teams:")
         for teamName, count in pairs(teamsInvited) do
-            print("  |cff88ff88" .. teamName .. ":|r " .. count .. " invites")
+            addon.DebugPrint("  |cff88ff88" .. teamName .. ":|r " .. count .. " invites")
         end
     else
-        print("|cffff8800MultiboxHelper:|r No invites sent (no other teams configured or all members already in group)")
+        addon.DebugPrint("|cffff8800MultiboxHelper:|r No invites sent (no other teams configured or all members already in group)")
     end
 end
 
